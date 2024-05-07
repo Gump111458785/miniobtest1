@@ -1,7 +1,6 @@
 # MiniOB 介绍
 
 <div align="left">
-
 [![Chinese Doc](https://img.shields.io/badge/文档-简体中文-blue)](https://oceanbase.github.io/miniob/miniob-introduction.html)
 [![MiniOB stars](https://img.shields.io/badge/dynamic/json?color=blue&label=stars&query=stargazers_count&url=https%3A%2F%2Fapi.github.com%2Frepos%2Foceanbase%2Fminiob)](https://github.com/oceanbase/miniob)
 [![Coverage Status](https://codecov.io/gh/oceanbase/miniob/branch/main/graph/badge.svg)](https://codecov.io/gh/oceanbase/miniob)
