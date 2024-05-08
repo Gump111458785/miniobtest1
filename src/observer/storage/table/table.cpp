@@ -518,38 +518,45 @@ RC Table::sync()
   return rc;
 }
 
-RC Table::destroy(const char* dir) {
-    RC rc = sync();//刷新所有脏页
-
-    if(rc != RC::SUCCESS) return rc;
-
-    std::string path = table_meta_file(dir, name());
-    if(unlink(path.c_str()) != 0) {
-        LOG_ERROR("Failed to remove meta file=%s, errno=%d", path.c_str(), errno);
-        return RC::GENERIC_ERROR;
-    }
-
-    std::string data_file = std::string(dir) + "/" + name() + TABLE_DATA_SUFFIX;
-    if(unlink(data_file.c_str()) != 0) { // 删除描述表元数据的文件
-        LOG_ERROR("Failed to remove data file=%s, errno=%d", data_file.c_str(), errno);
-        return RC::GENERIC_ERROR;
-    }
-
-    std::string text_data_file = std::string(dir) + "/" + name() + TABLE_TEXT_DATA_SUFFIX;
-    if(unlink(text_data_file.c_str()) != 0) { // 删除表实现text字段的数据文件（后续实现了text case时需要考虑，最开始可以不考虑这个逻辑）
-        LOG_ERROR("Failed to remove text data file=%s, errno=%d", text_data_file.c_str(), errno);
-        return RC::GENERIC_ERROR;
-    }
-
-    const int index_num = table_meta_.index_num();
-    for (int i = 0; i < index_num; i++) {  // 清理所有的索引相关文件数据与索引元数据
-        ((BplusTreeIndex*)indexes_[i])->close();
-        const IndexMeta* index_meta = table_meta_.index(i);
-        std::string index_file = index_data_file(dir, name(), index_meta->name());
-        if(unlink(index_file.c_str()) != 0) {
-            LOG_ERROR("Failed to remove index file=%s, errno=%d", index_file.c_str(), errno);
-            return RC::GENERIC_ERROR;
+RC Table::drop(const char* dir) 
+{
+    RC rc = RC::SUCCESS;//刷新所有脏页
+    if((rc = sync()) != RC::SUCCESS){
+      LOG_WARN("Failed to sync table %s to disk.",name());
+    } 
+    else {
+      std::string path = ::table_meta_file(dir, name());
+      if(unlink(path.c_str()) != 0) {
+        LOG_WARN("unable to delete %s meta file", name());
+        rc = RC::DELETE_FILE_ERROR;
+      }
+      else {
+        const int index_num = table_meta_.index_num();
+        for (int i = 0; i < index_num; i++) {  // 清理所有的索引相关文件数据与索引元数据
+          ((BplusTreeIndex*)indexes_[i])->close();
+          const IndexMeta* index_meta = table_meta_.index(i);
+          if(index_meta!=nullptr) {
+            std::string index_file = ::table_meta_file(dir, name(), index_meta->name());
+            if(0!=::unlike(indexfile.c_str())){
+              LOG_WARN("unable to delete %s meta file",name());
+              rc = RC::DELETE_FILE_ERROR;
+              break;
+            }
+          }
         }
+      }
     }
-    return RC::SUCCESS;
+    if (RC::SUCCESS == rc) {
+      record_handler_->close();
+      delete record_handler_;
+      record_handler_ = nullptr;
+      std::string data_file = ::table_meta_file(dir, name());
+      BufferPoolManager &bpm = BufferPoolManager::instance();
+      rc = bpm.remove_file(data_file.c_str());
+      if (nullptr != text_buffer_pool_) {
+        std::string text_file = table_text_file(dir,name());
+        rc = bpm.remove_file(test_file.c_str());
+      }
+    }
+    return rc;
 }
