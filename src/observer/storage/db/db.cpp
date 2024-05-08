@@ -395,18 +395,28 @@ RC Db::init_dblwr_buffer()
 
 RC Db::drop_table(const char* table_name)
 {
+    RC rc = RC::SUCCEESS;
+    Table* table = nullptr;
     auto it = opened_tables_.find(table_name);
     if (it == opened_tables_.end())
     {
-        return SCHEMA_TABLE_NOT_EXIST; // 找不到表，要返回错误，测试程序中也会校验这种场景
+      LOG_WARN("table : %s not exist",table_name);
+      rc = RC::SCHEMA_TABLE_NOT_EXIST; // 找不到表，要返回错误，测试程序中也会校验这种场景
     }
-    Table* table = it->second;
-    RC rc = table->destroy(path_.c_str()); // 让表自己销毁资源
-    if(rc != RC::SUCCESS) return rc;
-
-    opened_tables_.erase(it); // 删除成功的话，从表list中将它删除
-    delete table;
-    return RC::SUCCESS;
+    else if((table = it->second)==nullptr)
+    {
+      LOG_WARN("table : %s not exist",table_name);
+      rc = RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+    else if((rc=table->drop(path_.c_str()))!=RC::SUCCESS)
+    {
+      LOG_WARN("table drop file,errno: %s",strrc(rc));
+    }
+    else{
+      opened_tables_.erase(it);
+      delete table;
+    }
+    return rc;
 }
 
 LogHandler        &Db::log_handler() { return *log_handler_; }
